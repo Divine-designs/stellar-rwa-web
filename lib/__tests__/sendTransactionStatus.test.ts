@@ -6,7 +6,7 @@
  * behaviour by mocking the Soroban RPC server at the module level.
  */
 
-import { ContractError } from "@/lib/stellar";
+import type { ContractError as ContractErrorType } from "@/lib/stellar";
 
 // ---------------------------------------------------------------------------
 // Lightweight helpers that mirror the subset of @stellar/stellar-sdk used
@@ -14,7 +14,6 @@ import { ContractError } from "@/lib/stellar";
 // ---------------------------------------------------------------------------
 
 const FAKE_HASH = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-const FAKE_PASSPHRASE = "Test SDF Network ; September 2015";
 
 // We mock the entire @stellar/stellar-sdk module so we can control what the
 // RPC server returns from sendTransaction / getTransaction without a live node.
@@ -64,11 +63,24 @@ jest.mock("@stellar/stellar-sdk", () => {
   };
 });
 
-import { rpc } from "@stellar/stellar-sdk";
-import { invokeContract, getServer } from "@/lib/stellar";
+const fakeSigner = async (xdr: string) => xdr;
 
-// Build a mock server that returns the given sendTransaction result.
-function makeMockServer(sendStatus: string) {
+/**
+ * `getServer` caches a server per network at module scope. A spy on a
+ * statically-imported `getServer` doesn't reach that cache once it's
+ * populated — the cached entry from whichever test ran first wins for every
+ * test after it, which is why these tests used to bleed into each other.
+ * Instead, reset the module registry and re-require both the SDK mock and
+ * lib/stellar fresh for every test, so each gets its own empty cache and
+ * `new rpc.Server()` is actually invoked again.
+ */
+function freshStellar(sendStatus: string) {
+  jest.resetModules();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const sdk = require("@stellar/stellar-sdk");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const stellar = require("@/lib/stellar");
+
   const mockServer = {
     getAccount: jest.fn().mockResolvedValue({}),
     simulateTransaction: jest.fn().mockResolvedValue({
@@ -80,26 +92,18 @@ function makeMockServer(sendStatus: string) {
       hash: FAKE_HASH,
     }),
     getTransaction: jest.fn().mockResolvedValue({
-      status: rpc.Api.GetTransactionStatus.SUCCESS,
+      status: sdk.rpc.Api.GetTransactionStatus.SUCCESS,
       returnValue: undefined,
     }),
   };
-  (rpc.Server as jest.Mock).mockReturnValue(mockServer);
-  return mockServer;
+  (sdk.rpc.Server as jest.Mock).mockReturnValue(mockServer);
+
+  return { mockServer, invokeContract: stellar.invokeContract as typeof import("@/lib/stellar").invokeContract };
 }
 
-const fakeSigner = async (xdr: string) => xdr;
-
 describe("invokeContract — sendTransaction status handling (#518)", () => {
-  beforeEach(() => {
-    // Clear the server cache between tests so each test gets its own mock.
-    jest.resetModules();
-  });
-
   it("throws a clear ContractError for TRY_AGAIN_LATER without polling", async () => {
-    const mockServer = makeMockServer("TRY_AGAIN_LATER");
-    // Override getServer to return our mock.
-    jest.spyOn(require("@/lib/stellar"), "getServer").mockReturnValue(mockServer);
+    const { mockServer, invokeContract } = freshStellar("TRY_AGAIN_LATER");
 
     await expect(
       invokeContract(
@@ -120,10 +124,9 @@ describe("invokeContract — sendTransaction status handling (#518)", () => {
   });
 
   it("TRY_AGAIN_LATER error detail includes the hash", async () => {
-    const mockServer = makeMockServer("TRY_AGAIN_LATER");
-    jest.spyOn(require("@/lib/stellar"), "getServer").mockReturnValue(mockServer);
+    const { invokeContract } = freshStellar("TRY_AGAIN_LATER");
 
-    let caught: ContractError | undefined;
+    let caught: ContractErrorType | undefined;
     try {
       await invokeContract(
         "testnet",
@@ -134,15 +137,14 @@ describe("invokeContract — sendTransaction status handling (#518)", () => {
         fakeSigner,
       );
     } catch (e) {
-      caught = e as ContractError;
+      caught = e as ContractErrorType;
     }
     expect(caught).toBeDefined();
     expect(caught?.detail).toContain(FAKE_HASH);
   });
 
   it("DUPLICATE falls through to poll and returns success", async () => {
-    const mockServer = makeMockServer("DUPLICATE");
-    jest.spyOn(require("@/lib/stellar"), "getServer").mockReturnValue(mockServer);
+    const { mockServer, invokeContract } = freshStellar("DUPLICATE");
 
     await expect(
       invokeContract(
@@ -160,8 +162,7 @@ describe("invokeContract — sendTransaction status handling (#518)", () => {
   });
 
   it("PENDING falls through to poll as before", async () => {
-    const mockServer = makeMockServer("PENDING");
-    jest.spyOn(require("@/lib/stellar"), "getServer").mockReturnValue(mockServer);
+    const { mockServer, invokeContract } = freshStellar("PENDING");
 
     await expect(
       invokeContract(
@@ -178,13 +179,12 @@ describe("invokeContract — sendTransaction status handling (#518)", () => {
   });
 
   it("throws ContractError for ERROR status with network-rejected message", async () => {
-    const mockServer = makeMockServer("ERROR");
+    const { mockServer, invokeContract } = freshStellar("ERROR");
     (mockServer.sendTransaction as jest.Mock).mockResolvedValue({
       status: "ERROR",
       hash: FAKE_HASH,
       errorResult: { message: "bad tx" },
     });
-    jest.spyOn(require("@/lib/stellar"), "getServer").mockReturnValue(mockServer);
 
     await expect(
       invokeContract(
@@ -204,8 +204,7 @@ describe("invokeContract — sendTransaction status handling (#518)", () => {
   });
 
   it("throws ContractError for unknown status codes", async () => {
-    const mockServer = makeMockServer("UNKNOWN_FUTURE_STATUS");
-    jest.spyOn(require("@/lib/stellar"), "getServer").mockReturnValue(mockServer);
+    const { invokeContract } = freshStellar("UNKNOWN_FUTURE_STATUS");
 
     await expect(
       invokeContract(

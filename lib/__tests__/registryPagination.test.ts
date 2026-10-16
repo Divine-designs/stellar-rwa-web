@@ -9,6 +9,7 @@
 
 jest.mock("@/lib/stellar", () => ({
   readContract: jest.fn(),
+  arg: jest.requireActual("@/lib/stellar").arg,
 }));
 
 import { registry } from "@/lib/contracts";
@@ -61,8 +62,8 @@ describe("registry.getAllAssets (#526)", () => {
     const result = await registry.getAllAssets("testnet");
 
     expect(result).toHaveLength(3);
-    expect(result[0].id).toBe(1n);
-    expect(result[2].id).toBe(3n);
+    expect(result[0]!.id).toBe(1n);
+    expect(result[2]!.id).toBe(3n);
     expect(mockReadContract).toHaveBeenCalledTimes(1);
   });
 
@@ -120,6 +121,7 @@ describe("registry.getAllAssets (#526)", () => {
     mockReadContract.mockResolvedValue([raw]);
 
     const [entry] = await registry.getAllAssets("testnet");
+    if (!entry) throw new Error("expected one entry");
 
     expect(entry.id).toBe(7n);
     expect(entry.tokenContract).toBe("CTOKEN7");

@@ -167,7 +167,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const addressRef = useRef<string | null>(null);
-  addressRef.current = address;
+  useEffect(() => {
+    addressRef.current = address;
+  }, [address]);
 
   const syncNetwork = useCallback(async () => {
     const wn = await getWalletNetwork();

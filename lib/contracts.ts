@@ -213,7 +213,6 @@ export const registry = {
 
     try {
       // Paginated path (new contract signature).
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const page = await readContract<RawEntry[]>(
           network,
@@ -224,8 +223,9 @@ export const registry = {
         const entries = page ?? [];
         all.push(...entries);
         if (entries.length < limit) break;
-        // Advance: the next page starts after the last entry's id.
-        startId = BigInt(entries[entries.length - 1].id) + 1n;
+        // Advance: the next page starts after the last entry's id. The break
+        // above guarantees entries.length >= limit (> 0) here.
+        startId = BigInt(entries[entries.length - 1]!.id) + 1n;
       }
     } catch (err) {
       // Detect argument-count mismatches from old deployments that take no

@@ -379,7 +379,6 @@ async function pollTransaction(
 ): Promise<rpc.Api.GetTransactionResponse> {
   const start = Date.now();
   // Poll roughly every ledger (~2s) until the RPC knows the transaction.
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     let res: rpc.Api.GetTransactionResponse;
     try {

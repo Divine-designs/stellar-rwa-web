@@ -23,7 +23,10 @@ export function dedupeRequest<T>(
 ): Promise<T> {
   const cached = inFlightRequests.get(key);
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION_MS) {
-    return cached.promise;
+    // The map stores Promise<unknown> since it's shared across callers with
+    // different T; callers are responsible for using a key whose cached
+    // value actually matches the T they ask for.
+    return cached.promise as Promise<T>;
   }
 
   const promise = factory().finally(() => {

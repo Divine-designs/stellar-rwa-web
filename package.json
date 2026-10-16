@@ -4,13 +4,13 @@
   "private": true,
   "description": "Tokenize real-world assets on Stellar — issue compliant asset tokens, manage KYC allowlists, and distribute dividends.",
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watchAll",
@@ -39,7 +39,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.5.4",
-    "eslint": "^10.11.0",
+    "eslint": "^9.17.0",
     "eslint-config-next": "^16.3.8",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^30.5.2",

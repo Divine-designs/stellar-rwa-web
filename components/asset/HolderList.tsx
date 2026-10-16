@@ -33,6 +33,14 @@ export function HolderList({ asset, onCount, refreshKey }: HolderListProps) {
     asset.id,
   );
   const [displayCount, setDisplayCount] = useState(ROWS_PER_PAGE);
+  // Reset the page size during render rather than in an effect when the
+  // asset changes, per React's guidance on adjusting state from props
+  // (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  const [prevTokenContract, setPrevTokenContract] = useState(asset.tokenContract);
+  if (asset.tokenContract !== prevTokenContract) {
+    setPrevTokenContract(asset.tokenContract);
+    setDisplayCount(ROWS_PER_PAGE);
+  }
 
   const holders = data ?? [];
   const needsPagination = holders.length > VIRTUALIZE_THRESHOLD;
@@ -42,10 +50,6 @@ export function HolderList({ asset, onCount, refreshKey }: HolderListProps) {
   useEffect(() => {
     if (data && onCount) onCount(data.length);
   }, [data, onCount]);
-
-  useEffect(() => {
-    setDisplayCount(ROWS_PER_PAGE);
-  }, [asset.tokenContract]);
 
   if (loading) {
     return (

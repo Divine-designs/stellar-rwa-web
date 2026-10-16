@@ -20,7 +20,7 @@ export function useHolderTotals(assets: AssetEntry[] | null) {
       if (!assets || assets.length === 0) return 0;
 
       const stats = await api.getStats();
-      if (stats) return stats.totalHolders;
+      if (stats && stats.totalHolders !== null) return stats.totalHolders;
 
       const metas = await Promise.all(
         assets.map((a) => assetToken.getMetadata(network, a.tokenContract)),

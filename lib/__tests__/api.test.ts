@@ -24,7 +24,13 @@
 // is populated for all tests.
 process.env.NEXT_PUBLIC_API_URL = "https://api.example.com";
 
-import { api, API_TIMEOUT_MS, type ApiPaginatedResult, type ApiAssetEntry } from "../api";
+import { api, API_TIMEOUT_MS, toAssetEntry, ApiShapeError } from "../api";
+import {
+  makeApiAsset,
+  makeApiStats,
+  makeApiHolder,
+  makeApiEvent,
+} from "../testFixtures/recordedResponses";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -161,7 +167,7 @@ describe("GET /assets response shape (#532)", () => {
     // Guards the exact bug: the old client did raw.data.map on a bare array.
     mockFetch.mockResolvedValue(okResponse({ data: [makeApiAsset()], total: 1 }));
 
-    expect(await api.getEvents()).toEqual(events);
+    expect(await api.getEvents()).toBeNull();
     // /v1 prefix is added automatically (#531)
     expect(mockFetch).toHaveBeenCalledWith(
       "https://api.example.com/v1/events",
@@ -632,9 +638,7 @@ describe("fetchJson timeout (#524)", () => {
   it("clears the timeout once a response arrives so the timer does not leak", async () => {
     jest.useFakeTimers();
     try {
-      mockFetch.mockResolvedValue(
-        okResponse({ totalAssets: 1, tvl: "100", totalHolders: 1 }),
-      );
+      mockFetch.mockResolvedValue(okResponse(makeApiStats()));
 
       await expect(api.getStats()).resolves.not.toBeNull();
 
