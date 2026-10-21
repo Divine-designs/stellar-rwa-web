@@ -8,15 +8,30 @@
 
 export type Network = "testnet" | "mainnet";
 
-/** The three asset classes the platform supports. */
-export type AssetType = "real_estate" | "invoice" | "commodity";
+/**
+ * The asset classes the platform supports. This list must mirror the registry
+ * contract's `VALID_ASSET_TYPES` (stellar-rwa-contracts, contracts/registry):
+ * a type the registry accepts but this list lacks is second-class in the UI.
+ * `AssetType` is derived from it so the union and the list cannot drift.
+ */
+export const ASSET_TYPES = [
+  "real_estate",
+  "invoice",
+  "commodity",
+  "bond",
+  "equity",
+  "fund",
+] as const;
 
-export const ASSET_TYPES: AssetType[] = ["real_estate", "invoice", "commodity"];
+export type AssetType = (typeof ASSET_TYPES)[number];
 
 export const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   real_estate: "Real Estate",
   invoice: "Invoice",
   commodity: "Commodity",
+  bond: "Bond",
+  equity: "Equity",
+  fund: "Fund",
 };
 
 /** A registered asset, as returned by the registry contract's `AssetEntry`. */

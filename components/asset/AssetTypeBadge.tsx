@@ -37,6 +37,37 @@ const STYLES: Record<AssetType, Style> = {
       </svg>
     ),
   },
+  bond: {
+    bg: "bg-emerald-500/10 border-emerald-500/20",
+    text: "text-emerald-300",
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <circle cx="12" cy="12" r="3" />
+        <path d="M7 9h.01M17 15h.01" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  equity: {
+    bg: "bg-rose-500/10 border-rose-500/20",
+    text: "text-rose-300",
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M21 12A9 9 0 1 1 12 3v9h9Z" strokeLinejoin="round" />
+        <path d="M15 3.5A9 9 0 0 1 20.5 9H15V3.5Z" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  fund: {
+    bg: "bg-cyan-500/10 border-cyan-500/20",
+    text: "text-cyan-300",
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="m12 3 9 5-9 5-9-5 9-5Z" strokeLinejoin="round" />
+        <path d="m3 13 9 5 9-5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
 };
 
 const FALLBACK: Style = {

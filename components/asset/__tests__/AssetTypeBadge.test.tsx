@@ -2,7 +2,8 @@
  * Tests for components/asset/AssetTypeBadge.tsx
  *
  * Strategy: render the badge for each known asset type (real_estate / invoice /
- * commodity) and assert the human label plus the colour classes from STYLES.
+ * commodity / bond / equity / fund) and assert the human label plus the colour
+ * classes from STYLES.
  * Also covers the fallback path for an unrecognised type and className forwarding.
  */
 
@@ -30,6 +31,27 @@ describe("AssetTypeBadge", () => {
     render(<AssetTypeBadge type="commodity" />);
     const badge = screen.getByText("Commodity");
     expect(badge).toHaveClass("bg-amber-500/10", "text-amber-300");
+    expect(badge.querySelector("svg")).not.toBeNull();
+  });
+
+  it("renders the Bond label with its colour classes and icon", () => {
+    render(<AssetTypeBadge type="bond" />);
+    const badge = screen.getByText("Bond");
+    expect(badge).toHaveClass("bg-emerald-500/10", "text-emerald-300");
+    expect(badge.querySelector("svg")).not.toBeNull();
+  });
+
+  it("renders the Equity label with its colour classes and icon", () => {
+    render(<AssetTypeBadge type="equity" />);
+    const badge = screen.getByText("Equity");
+    expect(badge).toHaveClass("bg-rose-500/10", "text-rose-300");
+    expect(badge.querySelector("svg")).not.toBeNull();
+  });
+
+  it("renders the Fund label with its colour classes and icon", () => {
+    render(<AssetTypeBadge type="fund" />);
+    const badge = screen.getByText("Fund");
+    expect(badge).toHaveClass("bg-cyan-500/10", "text-cyan-300");
     expect(badge.querySelector("svg")).not.toBeNull();
   });
 

@@ -313,6 +313,68 @@ describe("AssetExplorer", () => {
     expect(screen.getByText("Trade Invoice #42")).toBeInTheDocument();
   });
 
+  // ── bond / equity / fund (types the registry accepts) ──────────────────
+
+  const BOND_ASSET = makeAsset({ id: 4n, name: "Lagos Treasury Bond", assetType: "bond" });
+  const EQUITY_ASSET = makeAsset({ id: 5n, name: "Nairobi Growth Equity", assetType: "equity" });
+  const FUND_ASSET = makeAsset({ id: 6n, name: "Accra Income Fund", assetType: "fund" });
+  const ALL_TYPE_ASSETS = [
+    REAL_ESTATE_ASSET,
+    INVOICE_ASSET,
+    COMMODITY_ASSET,
+    BOND_ASSET,
+    EQUITY_ASSET,
+    FUND_ASSET,
+  ];
+
+  it.each([
+    ["bond", "Lagos Treasury Bond"],
+    ["equity", "Nairobi Growth Equity"],
+    ["fund", "Accra Income Fund"],
+  ])("accepts type=%s in the URL and shows only those assets", (type, name) => {
+    setupMock({ assets: ALL_TYPE_ASSETS }, `type=${type}`);
+    render(<AssetExplorer />);
+
+    expect(screen.getByText(name)).toBeInTheDocument();
+    expect(screen.queryByText("Lagos Office Tower")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    // The matching chip is the pressed one, so the URL param was honoured
+    // rather than coerced back to "all".
+    expect(screen.getByRole("button", { pressed: true })).toHaveAccessibleName(
+      new RegExp(`^${type}, 1 asset$`, "i"),
+    );
+  });
+
+  it("pushes type=bond to the URL when the Bond chip is clicked", () => {
+    jest.useFakeTimers();
+    setupMock({ assets: ALL_TYPE_ASSETS });
+    render(<AssetExplorer />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^bond/i }));
+    jest.advanceTimersByTime(300);
+
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    expect(mockPush.mock.calls[0][0]).toContain("type=bond");
+    jest.useRealTimers();
+  });
+
+  it("per-type chip counts add up to the All count", () => {
+    // Two invoices so the counts are not all 1.
+    const secondInvoice = makeAsset({ id: 7n, name: "Trade Invoice #43", assetType: "invoice" });
+    setupMock({ assets: [...ALL_TYPE_ASSETS, secondInvoice] });
+    render(<AssetExplorer />);
+
+    const group = screen.getByRole("group", { name: /filter by asset type/i });
+    const counts = Array.from(group.querySelectorAll("button")).map((b) => {
+      const match = /, (\d+) assets?$/.exec(b.getAttribute("aria-label") ?? "");
+      return Number(match?.[1]);
+    });
+    const [all, ...perType] = counts;
+    expect(all).toBe(7);
+    expect(perType).toEqual([1, 2, 1, 1, 1, 1]);
+    expect(perType.reduce((sum, n) => sum + n, 0)).toBe(all);
+  });
+
   // ── filter chip interactions push to router ────────────────────────────
 
   it("calls router.push with type param when a filter chip is clicked", () => {

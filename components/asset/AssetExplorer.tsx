@@ -12,7 +12,7 @@ import {
 } from "./AssetFilter";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { ASSET_TYPES } from "@/types";
+import { ASSET_TYPES, type AssetType } from "@/types";
 import { DataFreshness } from "@/components/ui/DataFreshness";
 
 const PAGE_SIZE = 9;
@@ -64,15 +64,13 @@ export function AssetExplorer() {
   }, [searchParams]);
 
   const counts = useMemo(() => {
-    const c: Record<TypeFilter, number> = {
-      all: assets.length,
-      real_estate: 0,
-      invoice: 0,
-      commodity: 0,
-    };
+    // Seed one bucket per known type from ASSET_TYPES so a new type can't be
+    // left out and make the per-type counts stop adding up to "all".
+    const c = { all: assets.length } as Record<TypeFilter, number>;
+    for (const t of ASSET_TYPES) c[t] = 0;
     for (const a of assets) {
-      if (ASSET_TYPES.includes(a.assetType as (typeof ASSET_TYPES)[number])) {
-        c[a.assetType as TypeFilter] += 1;
+      if (ASSET_TYPES.includes(a.assetType as AssetType)) {
+        c[a.assetType as AssetType] += 1;
       }
     }
     return c;

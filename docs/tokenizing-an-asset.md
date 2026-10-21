@@ -22,9 +22,9 @@ and the issuer's Stellar account.
    is a valid Soroban contract address and calls `get_metadata` on the selected
    network. It only proceeds if the contract responds with a name and symbol.
 2. **Asset details:** Set the registry display name, asset class (real estate,
-   invoice, or commodity), and valuation in USD. The name and class are
-   pre-filled from token metadata where possible, but the registry name can be
-   changed. The valuation must be greater than zero.
+   invoice, commodity, bond, equity, or fund), and valuation in USD. The name
+   and class are pre-filled from token metadata where possible, but the registry
+   name can be changed. The valuation must be greater than zero.
 3. **Review and register:** Check the registry values, token contract, issuer,
    and compliance contract. Confirming submits `register_asset` to the registry.
    The app simulates and prepares the transaction, asks Freighter to sign it,
@@ -36,6 +36,16 @@ The registry stores the display name, asset class, valuation, token contract,
 and issuer address. Token balances and transfer restrictions remain controlled
 by the deployed contracts; transfers are checked against the compliance
 contract on-chain.
+
+## Supported asset classes
+
+The wizard, the Explore filter chips (with their counts) and the `?type=` URL
+parameter all read their options from `ASSET_TYPES` in `types/index.ts`. That
+list must mirror `VALID_ASSET_TYPES` in the registry contract
+(`stellar-rwa-contracts`, `contracts/registry`), which rejects any other value.
+When the contract's list changes, update `ASSET_TYPES`, `ASSET_TYPE_LABELS` and
+the badge styles in `components/asset/AssetTypeBadge.tsx` together;
+`types/__tests__/assetTypes.test.tsx` fails if they drift apart.
 
 ## Where the flow is implemented
 
