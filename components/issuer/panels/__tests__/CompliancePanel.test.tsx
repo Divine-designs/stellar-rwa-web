@@ -122,6 +122,8 @@ jest.mock("@/components/compliance/ComplianceBadge", () => ({
 // ── imports after mocks ────────────────────────────────────────────────────
 
 import { CompliancePanel } from "../CompliancePanel";
+import { compliance } from "@/lib/contracts";
+import { JURISDICTION_ERROR } from "@/lib/validation";
 
 // ── test fixtures ─────────────────────────────────────────────────────────
 
@@ -337,5 +339,104 @@ describe("CompliancePanel — AddToAllowlistCard expiry-ledger validation (#322)
 
     fireEvent.click(screen.getByRole("button", { name: /remove address/i }));
     await waitFor(() => expect(mockRun).toHaveBeenCalledTimes(1));
+  });
+});
+
+// ── jurisdiction code validation ──────────────────────────────────────────
+//
+// The compliance contract accepts exactly two ASCII letters and rejects
+// anything else with InvalidJurisdiction. Both forms must reject bad codes
+// before the wallet is asked to sign (tx.run is never reached), accept good
+// ones, and send the normalised (trimmed, upper-case) code.
+
+const INVALID_CODES: [string, string][] = [
+  ["USA", "three letters"],
+  ["U1", "a digit"],
+  ["U", "a single character"],
+  ["", "empty input"],
+  ["U S", "an inner space"],
+];
+
+const VALID_CODES: [string, string][] = [
+  ["US", "US"],
+  ["us", "US"],
+  [" de ", "DE"],
+];
+
+const ADDRESS = "GVALID123456789";
+
+/** Run the callback handed to tx.run, which is what reaches the contract call. */
+function runLastTxCallback() {
+  const callback = mockRun.mock.calls[mockRun.mock.calls.length - 1]![0] as (ctx: unknown) => unknown;
+  callback("ctx");
+}
+
+describe("CompliancePanel — jurisdiction code validation", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRun.mockResolvedValue(undefined);
+    mockUseAllowlist.mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+    mockGetLatestLedger.mockResolvedValue(CURRENT_LEDGER);
+  });
+
+  describe("Approve address form", () => {
+    it.each(INVALID_CODES)("rejects %j (%s) before signing", async (code) => {
+      render(<CompliancePanel asset={makeAsset()} />);
+      await fillAndSubmit({ address: ADDRESS, jurisdiction: code });
+
+      expect(await screen.findByText(JURISDICTION_ERROR)).toBeInTheDocument();
+      expect(mockRun).not.toHaveBeenCalled();
+    });
+
+    it.each(VALID_CODES)("accepts %j and sends %j", async (code, expected) => {
+      render(<CompliancePanel asset={makeAsset()} />);
+      await fillAndSubmit({ address: ADDRESS, jurisdiction: code });
+
+      await waitFor(() => expect(mockRun).toHaveBeenCalledTimes(1));
+      expect(screen.queryByText(JURISDICTION_ERROR)).not.toBeInTheDocument();
+      runLastTxCallback();
+      expect(compliance.addToAllowlist).toHaveBeenCalledWith("ctx", "CCOMPLIANCE", ADDRESS, expected, 0);
+    });
+  });
+
+  describe.each([
+    ["Block", "block-jur", compliance.blockJurisdiction],
+    ["Unblock", "unblock-jur", compliance.unblockJurisdiction],
+  ] as const)("%s jurisdiction form", (buttonName, inputId, contractCall) => {
+    function submit(code: string) {
+      render(<CompliancePanel asset={makeAsset()} />);
+      fireEvent.change(document.getElementById(inputId)!, { target: { value: code } });
+      fireEvent.click(screen.getByRole("button", { name: buttonName }));
+    }
+
+    it.each(INVALID_CODES)("rejects %j (%s) before signing", async (code) => {
+      submit(code);
+
+      expect(await screen.findByText(JURISDICTION_ERROR)).toBeInTheDocument();
+      expect(mockRun).not.toHaveBeenCalled();
+    });
+
+    it.each(VALID_CODES)("accepts %j and sends %j", async (code, expected) => {
+      submit(code);
+
+      await waitFor(() => expect(mockRun).toHaveBeenCalledTimes(1));
+      expect(screen.queryByText(JURISDICTION_ERROR)).not.toBeInTheDocument();
+      runLastTxCallback();
+      expect(contractCall).toHaveBeenCalledWith("ctx", "CCOMPLIANCE", expected);
+    });
+  });
+
+  it("no longer tells issuers that 3-character codes are valid", async () => {
+    render(<CompliancePanel asset={makeAsset()} />);
+    await fillAndSubmit({ address: ADDRESS, jurisdiction: "USA" });
+
+    const message = await screen.findByText(JURISDICTION_ERROR);
+    expect(message).toHaveTextContent("2-letter ISO 3166-1 alpha-2 code (e.g. US, DE, KE)");
+    expect(document.body).not.toHaveTextContent(/2[–-]3 character/i);
   });
 });

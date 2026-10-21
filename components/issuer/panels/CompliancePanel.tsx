@@ -14,6 +14,12 @@ import { TxProgress } from "@/components/ui/TxProgress";
 import { Spinner } from "@/components/ui/Spinner";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { truncateAddress } from "@/lib/format";
+import {
+  isValidJurisdiction,
+  normalizeJurisdiction,
+  JURISDICTION_ERROR,
+  JURISDICTION_INPUT_MAX_LENGTH,
+} from "@/lib/validation";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { explorerAddressUrl } from "@/lib/stellar";
@@ -78,11 +84,11 @@ function AddToAllowlistCard({
       setFormError("Enter a valid Stellar address (G… or C…).");
       return;
     }
-    const jur = jurisdiction.trim().toUpperCase();
-    if (!jur || jur.length < 2 || jur.length > 3) {
-      setFormError("Enter a 2–3 character ISO jurisdiction code (e.g. US, DE, KE).");
+    if (!isValidJurisdiction(jurisdiction)) {
+      setFormError(JURISDICTION_ERROR);
       return;
     }
+    const jur = normalizeJurisdiction(jurisdiction);
     let expiry = 0;
     if (expiresAt.trim()) {
       expiry = parseInt(expiresAt.trim(), 10);
@@ -155,7 +161,7 @@ function AddToAllowlistCard({
               value={jurisdiction}
               onChange={(e) => setJurisdiction(e.target.value.toUpperCase())}
               placeholder="US"
-              maxLength={3}
+              maxLength={JURISDICTION_INPUT_MAX_LENGTH}
               disabled={tx.pending || !isAdmin}
               className="input uppercase"
             />
@@ -450,9 +456,7 @@ function JurisdictionCard({
   const [unblockError, setUnblockError] = useState<string | null>(null);
 
   function validateJur(val: string): string | null {
-    const jur = val.trim().toUpperCase();
-    if (!jur || jur.length < 2 || jur.length > 3) return "Enter a 2–3 character ISO code.";
-    return null;
+    return isValidJurisdiction(val) ? null : JURISDICTION_ERROR;
   }
 
   // Either form being in-flight locks out the other to prevent racing a
@@ -466,7 +470,7 @@ function JurisdictionCard({
     if (err) { setBlockError(err); return; }
     setBlockError(null);
     const res = await blockTx.run((ctx) =>
-      compliance.blockJurisdiction(ctx, complianceId, blockJur.trim().toUpperCase()),
+      compliance.blockJurisdiction(ctx, complianceId, normalizeJurisdiction(blockJur)),
     );
     if (res) { setBlockJur(""); onChanged?.(); }
   }
@@ -478,7 +482,7 @@ function JurisdictionCard({
     if (err) { setUnblockError(err); return; }
     setUnblockError(null);
     const res = await unblockTx.run((ctx) =>
-      compliance.unblockJurisdiction(ctx, complianceId, unblockJur.trim().toUpperCase()),
+      compliance.unblockJurisdiction(ctx, complianceId, normalizeJurisdiction(unblockJur)),
     );
     if (res) { setUnblockJur(""); onChanged?.(); }
   }
@@ -505,7 +509,7 @@ function JurisdictionCard({
               value={blockJur}
               onChange={(e) => setBlockJur(e.target.value.toUpperCase())}
               placeholder="e.g. KP"
-              maxLength={3}
+              maxLength={JURISDICTION_INPUT_MAX_LENGTH}
               disabled={eitherPending || !isAdmin}
               className="input flex-1 uppercase"
             />
@@ -542,7 +546,7 @@ function JurisdictionCard({
               value={unblockJur}
               onChange={(e) => setUnblockJur(e.target.value.toUpperCase())}
               placeholder="e.g. US"
-              maxLength={3}
+              maxLength={JURISDICTION_INPUT_MAX_LENGTH}
               disabled={eitherPending || !isAdmin}
               className="input flex-1 uppercase"
             />
